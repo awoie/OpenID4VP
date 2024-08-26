@@ -432,54 +432,32 @@ Note: "https://self-issued.me/v2" is a symbolic string and can be used as an `au
 
 ## Verifier Metadata Management {#client_metadata_management}
 
-The `client_id_scheme` enables deployments of this specification to use different mechanisms to obtain and validate metadata of the Verifier beyond the scope of [@!RFC6749]. The term `client_id_scheme` is used since the Verifier is acting as an OAuth 2.0 Client.
+If the Client is not pre-registered with the Wallet, the `client_id` MUST be a URI.
 
-This specification defines the following values for the `client_id_scheme` parameter, followed by the examples where applicable: 
+The Wallet SHOULD verify the provided `redirect_uri` or `response_uri` belongs to the Client.
 
-* `pre-registered`: This value represents the [@!RFC6749] default behavior, i.e., the Client Identifier needs to be known to the Wallet in advance of the Authorization Request. The Verifier metadata is obtained using [@!RFC7591] or through out-of-band mechanisms.
+If the Authorization Request Object is signed, the Wallet MUST authenticate the Request Object against the `client_id` contained in the Request Object.
 
-* `redirect_uri`: This value indicates that the Verifier's Redirect URI (or Response URI when Response Mode `direct_post` is used) is also the value of the Client Identifier. The Authorization Request MUST NOT be signed. The Verifier MAY omit the `redirect_uri` Authorization Request parameter (or `response_uri` when Response Mode `direct_post` is used). All Verifier metadata parameters MUST be passed using the `client_metadata` parameter defined in (#vp_token_request).
+If the Authorization Request is signed, the `jwks` parameter in the `client_metadata` parameter MUST NOT be used to verify the signature of the Request Object.
 
-The following is a non-normative example of a request when `client_id` equals `redirect_uri`.
+TODO: include some text that `client_metadata` parameter does not take precedence over client metadata provided by other mechanisms that are more trusted (except for ephemeral encryption keys), e.g., DCR, OpenID Federation
 
-```
-HTTP/1.1 302 Found
-Location: https://client.example.org/universal-link?
-  response_type=vp_token
-  &client_id=https%3A%2F%2Fclient.example.org%2Fcb
-  &client_id_scheme=redirect_uri
-  &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
-  &presentation_definition=...
-  &nonce=n-0S6_WzA2Mj
-  &client_metadata=%7B%22vp_formats%22:%7B%22jwt_vp_json%22:%
-  7B%22alg%22:%5B%22EdDSA%22,%22ES256K%22%5D%7D,%22ldp
-  _vp%22:%7B%22proof_type%22:%5B%22Ed25519Signature201
-  8%22%5D%7D%7D%7D
-```
+The Wallet MUST Verifier metadata provided by the `client_metadata` parameter MUST NOT override Verifier metadata by other existing mechanisms, e.g., 
 
-* `entity_id`: This value indicates that the Client Identifier is an Entity Identifier defined in OpenID Federation [@!OpenID.Federation]. Processing rules given in [@!OpenID.Federation] MUST be followed. Automatic Registration as defined in [@!OpenID.Federation] MUST be used. The Authorization Request MAY also contain a `trust_chain` parameter. The final Verifier metadata is obtained from the Trust Chain after applying the policies, according to [@!OpenID.Federation]. The `client_metadata` parameter, if present in the Authorization Request, MUST be ignored when this Client Identifier scheme is used.
+If the Client is not pre-registered and if the Authorization Request is unsigned, the Wallet MUST check if the `client_id` matches the `redirect_uri` or `response_uri` parameter.
 
-* `did`: This value indicates that the Client Identifier is a DID defined in [@!DID-Core]. The request MUST be signed with a private key associated with the DID. A public key to verify the signature MUST be obtained from the `verificationMethod` property of a DID Document. Since DID Document may include multiple public keys, a particular public key used to sign the request in question MUST be identified by the `kid` in the JOSE Header. To obtain the DID Document, the Wallet MUST use DID Resolution defined by the DID method used by the Verifier. All Verifier metadata other than the public key MUST be obtained from the `client_metadata` parameter as defined in (#vp_token_request).
+It is a Wallet-policy decision on how to authenticate the Request Object, whether to accept unsigned Authorization Requests and whether the linkage between the `redirect_uri` or `response_uri` and the Client is verified.
 
-The following is a non-normative example of a header and a body of a signed Request Object when Client Identifier scheme is a `did`:
+Note: To prevent downgrade attacks, a Client can choose to include certain parameters in the request object or not.
 
-Header
+The following is a list of methods defined by this specification that MAY be used by the Wallet to authenticate the Request Object against the `client_id` in the Request Object and verify the `redirect_uri` or `response_uri` belong to the Client:
+- Pre-registered: If the Client is pre-registered, the `jwks` Client Metadata parameter provided upon registration MUST be used to verify the signature of the Request Object.
+- X.509 certificates: If the Request Object contains an `x5c`, `x5t`, or `x5t#S256` header parameter, after validating the X.509 certificate chain, the Wallet MUST use the public key from the leaf-certificate of the X.509 certificate chain to verify the signature of the Request Object. In this case, the leaf-certificate MUST include a`dNSName` Subject Alternative Name (SAN) [RFC5280] that matches the FQDN of the `client_id`, or `uniformResourceIdentifier` SAN [RFC5280] that matches the `client_id`. If the Wallet can establish trust in the `client_id` authenticated through the certificate, e.g. because the `client_id` is contained in a list of trusted Client Identifiers, it MAY allow the Client to freely choose the `redirect_uri` or `response_uri` value. If not, the `redirect_uri` or `response_uri` value MUST match the `client_id`.
+- DID Resolution: If the `client_id` in the Request Object is a DID, a public key to verify the signature MUST be obtained from the `verificationMethod` property of a DID Document. Since a DID Document can include multiple public keys, a particular public key used to sign the request in question MUST be identified by the `kid` header parameter. To obtain the DID Document, the Wallet MUST use DID Resolution defined by the DID method used by the Verifier.
+- Verifier Attestation: If the Request Object contains a Verifier Attestation JWT as defined in Section 10, the `client_id` MUST equal the `sub` claim value in the Verifier Attestation JWT. The Wallet MUST verify the signature of the Request Object using the public key in the `cnf` claim in the Verifier attestation JWT. This serves as proof of possesion of this key. The Wallet MUST validate the signature on the Verifier Attestation JWT. The `iss` claim value of the Verifier Attestation JWT MUST identify a party the Wallet trusts for issuing Verifier Attestation JWTs. If the issuer of the Verifier Attestation JWT adds a `redirect_uris` claim to the Verifier Attestation, the Wallet MUST ensure the `redirect_uri` request parameter value exactly matches one of the `redirect_uris` claim entries.
+- OpenID Federation: If the `client_id` in the Request Object is an Entity Identifier defined in OpenID Federation [OpenID.Federation], the processing rules given in [OpenID.Federation] MUST be followed. Automatic Registration as defined in [OpenID.Federation] MUST be used. The Authorization Request MAY also contain a `trust_chain` parameter. The `jwks` parameter of the final Verifier metadata obtained from the Trust Chain after applying the policies, according to [OpenID.Federation], MUST be used to verify the signature of the Request Object.
 
-<{{examples/request/request_header_client_id_did.json}}
-
-Body
-
-<{{examples/request/request_object_client_id_did.json}}
-
-* `verifier_attestation`: This Client Identifier Scheme allows the Verifier to authenticate using a JWT that is bound to a certain public key as defined in (#verifier_attestation_jwt). When the Client Identifier Scheme is `verifier_attestation`, the Client Identifier MUST equal the `sub` claim value in the Verifier attestation JWT. The request MUST be signed with the private key corresponding to the public key in the `cnf` claim in the Verifier attestation JWT. This serves as proof of possesion of this key. The Verifier attestation JWT MUST be added to the `jwt` JOSE Header of the request object (see (#verifier_attestation_jwt)). The Wallet MUST validate the signature on the Verifier attestation JWT. The `iss` claim value of the Verifier Attestation JWT MUST identify a party the Wallet trusts for issuing Verifier Attestation JWTs. If the Wallet cannot establish trust, it MUST refuse the request. If the issuer of the Verifier Attestation JWT adds a `redirect_uris` claim to the attestation, the Wallet MUST ensure the `redirect_uri` request parameter value exactly matches one of the `redirect_uris` claim entries. All Verifier metadata other than the public key MUST be obtained from the `client_metadata` parameter.
-
-* `x509_san_dns`: When the Client Identifier Scheme is `x509_san_dns`, the Client Identifier MUST be a DNS name and match a `dNSName` Subject Alternative Name (SAN) [@!RFC5280] entry in the leaf certificate passed with the request. The request MUST be signed with the private key corresponding to the public key in the leaf X.509 certificate of the certificate chain added to the request in the `x5c` JOSE header [@!RFC7515] of the signed request object. The Wallet MUST validate the signature and the trust chain of the X.509 certificate. All Verifier metadata other than the public key MUST be obtained from the `client_metadata` parameter. If the Wallet can establish trust in the Client Identifier authenticated through the certificate, e.g. because the Client Identifier is contained in a list of trusted Client Identifiers, it may allow the client to freely choose the `redirect_uri` value. If not, the FQDN of the `redirect_uri` value MUST match the Client Identifier.
-
-* `x509_san_uri`: When the Client Identifier Scheme is `x509_san_uri`, the Client Identifier MUST be a URI and match a `uniformResourceIdentifier` Subject Alternative Name (SAN) [@!RFC5280] entry in the leaf certificate passed with the request. The request MUST be signed with the private key corresponding to the public key in the leaf X.509 certificate of the certificate chain added to the request in the `x5c` JOSE header [@!RFC7515] of the signed request object. The Wallet MUST validate the signature and the trust chain of the X.509 certificate. All Verifier metadata other than the public key MUST be obtained from the `client_metadata` parameter. If the Wallet can establish trust in the Client Identifier authenticated through the certificate, e.g. because the Client Identifier is contained in a list of trusted Client Identifiers, it may allow the client to freely choose the `redirect_uri` value. If not, the `redirect_uri` value MUST match the Client Identifier.
-
-To use `client_id_scheme` values `entity_id`, `did`, `verifier_attestation`, `x509_san_dns`, and `x509_san_uri`, Verifiers MUST be confidential clients. This might require changes to the technical design of native apps as such apps are typically public clients.
-
-Other specifications can define further values for the `client_id_scheme` parameter. It is RECOMMENDED to use collision-resistant names for such values.
+Separate specifications or ecosystem regulations MAY define rules complementing the rules defined above, but such rules are out of scope of this specification. 
 
 ## Request URI Method `post` {#request_uri_method_post}
 
