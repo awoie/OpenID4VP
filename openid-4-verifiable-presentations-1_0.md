@@ -442,8 +442,6 @@ If the Authorization Request is signed, the `jwks` parameter in the `client_meta
 
 TODO: include some text that `client_metadata` parameter does not take precedence over client metadata provided by other mechanisms that are more trusted (except for ephemeral encryption keys), e.g., DCR, OpenID Federation
 
-The Wallet MUST Verifier metadata provided by the `client_metadata` parameter MUST NOT override Verifier metadata by other existing mechanisms, e.g., 
-
 If the Client is not pre-registered and if the Authorization Request is unsigned, the Wallet MUST check if the `client_id` matches the `redirect_uri` or `response_uri` parameter.
 
 It is a Wallet-policy decision on how to authenticate the Request Object, whether to accept unsigned Authorization Requests and whether the linkage between the `redirect_uri` or `response_uri` and the Client is verified.
