@@ -434,7 +434,8 @@ Note: "https://self-issued.me/v2" is a symbolic string and can be used as an `au
 
 If the Client is not pre-registered with the Wallet, the `client_id` MUST be a URI.
 
-The Wallet SHOULD verify the provided `redirect_uri` or `response_uri` belongs to the Client.
+The Wallet MUST verify the provided `redirect_uri` or `response_uri` belongs to the Client.
+(Note that it is currently unspecified how to achieve this for DIDs.)
 
 If the Authorization Request Object is signed, the Wallet MUST authenticate the Request Object against the `client_id` contained in the Request Object.
 
