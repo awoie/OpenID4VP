@@ -439,7 +439,7 @@ The Wallet MUST verify the provided `redirect_uri` or `response_uri` belongs to 
 
 If the Authorization Request Object is signed, the Wallet MUST authenticate the Request Object against the `client_id` contained in the Request Object.
 
-If the Authorization Request is signed, the `jwks` parameter in the `client_metadata` parameter MUST NOT be used to verify the signature of the Request Object.
+If the Authorization Request is signed, any `jwks` parameter in the `client_metadata` parameter MUST NOT be used to verify the signature of the Request Object.
 
 TODO: include some text that `client_metadata` parameter does not take precedence over client metadata provided by other mechanisms that are more trusted (except for ephemeral encryption keys), e.g., DCR, OpenID Federation
 
